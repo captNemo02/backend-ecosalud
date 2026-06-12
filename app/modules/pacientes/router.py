@@ -182,16 +182,6 @@ def estadisticas_resumen(
     """
     return obtener_resumen(db)
 
-
-@router.get("/pacientes/estadisticas/genero")
-def estadisticas_genero(
-    db: Session = Depends(get_db)
-):
-    """
-    Devuelve la distribución de pacientes por género.
-    """
-    return obtener_genero(db)
-
 @router.get("/clinica/direccion/gestion-pacientes")
 def estadisticas_direccion_pacientes(
     db: Session = Depends(get_db)
@@ -201,3 +191,10 @@ def estadisticas_direccion_pacientes(
     Resumen global de estados (activos/inactivos), distribución por género y rangos de edad.
     """
     return obtener_indicadores_direccion_pacientes(db)
+@router.get("/dashboard/metricas-personales/{paciente_id}")
+def get_metricas_paciente(paciente_id: int, db: Session = Depends(get_db)):
+    """
+    Retorna los 3 gráficos clave de control personal para el portal del paciente:
+    Citas médicas, balance de recetas y tendencia mensual de visitas.
+    """
+    return obtener_metricas_personales_paciente(db, paciente_id=paciente_id)
