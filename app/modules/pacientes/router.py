@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from . import schemas, service
-from .estadisticas import obtener_resumen, obtener_genero
+from .estadisticas import obtener_metricas_personales_paciente
 from .analiticas import obtener_indicadores_direccion_pacientes
 from .auth import get_current_paciente_id, create_access_token, create_refresh_token, verify_jwt
 
