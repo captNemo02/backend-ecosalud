@@ -20,18 +20,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configurar middleware de CORS para habilitar la conexión del frontend en React
+# 1. Definimos las URLs explícitas de producción y desarrollo local
 origins = [
-    "https://frontend-ecosalud.onrender.com",
-    "https://tu-backend.onrender.com"
+    "http://localhost:5173",                  # Para tus pruebas en local
+    "https://frontend-ecosalud.onrender.com"  # Tu frontend real en Render
 ]
-    allow_origins=["*"],  # Permitir conexiones de cualquier origen en desarrollo
-    allow_credentials=True,
-    allow_methods=["*"],  # Permitir todos los métodos (GET, POST, PATCH, etc.)
-    allow_headers=["*"],  # Permitir todas las cabeceras
+
+# 2. Configurar middleware de CORS acoplando la lista de orígenes de forma correcta
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,       # <-- Ya no usamos "*", usamos la lista segura
+    allow_credentials=True,      # Requerido para el manejo de tus tokens y sesiones
+    allow_methods=["*"],         # Permitir todos los métodos (GET, POST, PATCH, etc.)
+    allow_headers=["*"],         # Permitir todas las cabeceras de autenticación
 )
 
 # Incluir routers de módulos de negocio
 app.include_router(pacientes_router)
 app.include_router(clinicas_router)
-
