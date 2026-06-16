@@ -17,7 +17,7 @@ router = APIRouter(
 def login_paciente(login_data: schemas.PacienteLogin, db: Session = Depends(get_db)):
     """
     Inicia sesión de un paciente validando su correo y su número de documento (DNI).
-    Genera un access token (válido por 5 minutos) y un refresh token (válido por 15 minutos).
+    Genera un access token (válido por 15 minutos) y un refresh token (válido por 24 horas).
     """
     paciente = service.get_paciente_by_email_and_documento(
         db, email=login_data.email, numero_documento=login_data.numero_documento

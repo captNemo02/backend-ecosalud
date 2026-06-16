@@ -7,8 +7,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 SECRET_KEY = "ecosalud_super_secret_jwt_key_2026"
-ACCESS_TOKEN_EXPIRE_SECONDS = 300  # 5 minutes
-REFRESH_TOKEN_EXPIRE_SECONDS = 900 # 15 minutes
+ACCESS_TOKEN_EXPIRE_SECONDS = 900  # 15 minutes
+REFRESH_TOKEN_EXPIRE_SECONDS = 86400 # 24 hours
 
 security = HTTPBearer()
 
