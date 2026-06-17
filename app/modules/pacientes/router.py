@@ -79,23 +79,37 @@ def crear_paciente(paciente: schemas.PacienteCreate, db: Session = Depends(get_d
 # --- Endpoints Protegidos del Paciente ---
 
 @router.get("/pacientes", response_model=List[schemas.PacienteResponse])
-def obtener_pacientes(db: Session = Depends(get_db), current_paciente_id: int = Depends(get_current_paciente_id)):
+def obtener_pacientes(
+    numero_documento: str = None,
+    nombres: str = None,
+    apellidos: str = None,
+    estado: str = None,
+    search: str = None,
+    db: Session = Depends(get_db)
+):
     """
-    Obtiene la lista de todos los pacientes registrados (requiere token de acceso).
+    Obtiene la lista de pacientes registrados con filtros opcionales (nombre, apellido, dni, estado, o búsqueda general).
     """
-    return service.get_pacientes(db=db)
+    return service.get_pacientes(
+        db=db,
+        nombres=nombres,
+        apellidos=apellidos,
+        numero_documento=numero_documento,
+        estado=estado,
+        search=search
+    )
 
 @router.get("/paciente/{id}", response_model=schemas.PacienteResponse)
-def obtener_paciente(id: int, db: Session = Depends(get_db), current_paciente_id: int = Depends(get_current_paciente_id)):
+def obtener_paciente(id: int, db: Session = Depends(get_db)):
     """
     Obtiene los detalles de un paciente específico por su ID.
-    Un paciente solo puede consultar su propia información.
     """
-    if current_paciente_id != id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acceso denegado. No está autorizado para ver este perfil."
-        )
+    # [COMENTADO POR SEGURIDAD / ACCESO PÚBLICO]
+    # if current_paciente_id != id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Acceso denegado. No está autorizado para ver este perfil."
+    #     )
         
     paciente = service.get_paciente_by_id(db, paciente_id=id)
     if not paciente:
@@ -103,20 +117,16 @@ def obtener_paciente(id: int, db: Session = Depends(get_db), current_paciente_id
     return paciente
 
 @router.patch("/paciente/{id}", response_model=schemas.PacienteResponse)
-def actualizar_paciente(id: int, paciente_update: schemas.PacienteUpdate, db: Session = Depends(get_db), current_paciente_id: int = Depends(get_current_paciente_id)):
+def actualizar_paciente(id: int, paciente_update: schemas.PacienteUpdate, db: Session = Depends(get_db)):
     """
     Actualiza parcialmente los datos de un paciente.
-    Un paciente solo puede actualizar su propia información.
     """
-    # Excepción: Permitimos que se actualice el estado de cualquier paciente (para el panel administrativo de pruebas)
-    # pero si es una edición de perfil típica, forzamos seguridad.
-    # Para ser flexibles en este ambiente educativo, si es un cambio de estado lo permitimos,
-    # sino verificamos que sea el mismo paciente.
-    if paciente_update.estado is None and current_paciente_id != id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acceso denegado. No está autorizado para modificar este perfil."
-        )
+    # [COMENTADO POR SEGURIDAD / ACCESO PÚBLICO]
+    # if paciente_update.estado is None and current_paciente_id != id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Acceso denegado. No está autorizado para modificar este perfil."
+    #     )
         
     paciente_db = service.update_paciente(db, paciente_id=id, paciente_update=paciente_update)
     if not paciente_db:
@@ -124,42 +134,42 @@ def actualizar_paciente(id: int, paciente_update: schemas.PacienteUpdate, db: Se
     return paciente_db
 
 @router.get("/paciente/{id}/historial-clinico", response_model=List[schemas.HistorialClinicoResponse])
-def obtener_historial_clinico(id: int, db: Session = Depends(get_db), current_paciente_id: int = Depends(get_current_paciente_id)):
+def obtener_historial_clinico(id: int, db: Session = Depends(get_db)):
     """
-    Obtiene todo el historial clínico asociado a un paciente específico (requiere token de acceso).
-    Un paciente solo puede consultar su propio historial clínico.
+    Obtiene todo el historial clínico asociado a un paciente específico.
     """
-    if current_paciente_id != id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acceso denegado. No está autorizado para ver este historial clínico."
-        )
+    # [COMENTADO POR SEGURIDAD / ACCESO PÚBLICO]
+    # if current_paciente_id != id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Acceso denegado. No está autorizado para ver este historial clínico."
+    #     )
     return service.get_historial_clinico_by_paciente(db=db, paciente_id=id)
 
 @router.get("/paciente/{id}/recetas", response_model=List[schemas.RecetaResponse])
-def obtener_recetas(id: int, db: Session = Depends(get_db), current_paciente_id: int = Depends(get_current_paciente_id)):
+def obtener_recetas(id: int, db: Session = Depends(get_db)):
     """
-    Obtiene todas las recetas médicas asociadas a un paciente específico (requiere token de acceso).
-    Un paciente solo puede consultar sus propias recetas.
+    Obtiene todas las recetas médicas asociadas a un paciente específico.
     """
-    if current_paciente_id != id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acceso denegado. No está autorizado para ver estas recetas."
-        )
+    # [COMENTADO POR SEGURIDAD / ACCESO PÚBLICO]
+    # if current_paciente_id != id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Acceso denegado. No está autorizado para ver estas recetas."
+    #     )
     return service.get_recetas_by_paciente(db=db, paciente_id=id)
 
 @router.get("/paciente/{id}/ordenes-medicas", response_model=List[schemas.OrdenMedicaResponse])
-def obtener_ordenes_medicas(id: int, db: Session = Depends(get_db), current_paciente_id: int = Depends(get_current_paciente_id)):
+def obtener_ordenes_medicas(id: int, db: Session = Depends(get_db)):
     """
-    Obtiene todas las órdenes médicas (exámenes de laboratorio, imagenología) del paciente (requiere token de acceso).
-    Un paciente solo puede consultar sus propias órdenes.
+    Obtiene todas las órdenes médicas (exámenes de laboratorio, imagenología) del paciente.
     """
-    if current_paciente_id != id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acceso denegado. No está autorizado para ver estas órdenes médicas."
-        )
+    # [COMENTADO POR SEGURIDAD / ACCESO PÚBLICO]
+    # if current_paciente_id != id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Acceso denegado. No está autorizado para ver estas órdenes médicas."
+    #     )
     return service.get_ordenes_medicas_by_paciente(db=db, paciente_id=id)
 
 

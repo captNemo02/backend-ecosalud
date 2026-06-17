@@ -9,8 +9,35 @@ def get_paciente_by_numero_documento(db: Session, numero_documento: str):
 def get_paciente_by_id(db: Session, paciente_id: int):
     return db.query(models.Paciente).filter(models.Paciente.id == paciente_id).first()
 
-def get_pacientes(db: Session):
-    return db.query(models.Paciente).order_by(models.Paciente.id.asc()).all()
+def get_pacientes(
+    db: Session, 
+    nombres: str = None, 
+    apellidos: str = None, 
+    numero_documento: str = None, 
+    estado: str = None,
+    search: str = None
+):
+    query = db.query(models.Paciente)
+    
+    if search:
+        search_filter = f"%{search}%"
+        query = query.filter(
+            (models.Paciente.nombres.ilike(search_filter)) |
+            (models.Paciente.apellidos.ilike(search_filter)) |
+            (models.Paciente.numero_documento.ilike(search_filter)) |
+            (models.Paciente.email.ilike(search_filter))
+        )
+    else:
+        if nombres:
+            query = query.filter(models.Paciente.nombres.ilike(f"%{nombres}%"))
+        if apellidos:
+            query = query.filter(models.Paciente.apellidos.ilike(f"%{apellidos}%"))
+        if numero_documento:
+            query = query.filter(models.Paciente.numero_documento == numero_documento)
+        if estado:
+            query = query.filter(models.Paciente.estado == estado)
+            
+    return query.order_by(models.Paciente.id.asc()).all()
 
 def create_paciente(db: Session, paciente: schemas.PacienteCreate):
     db_paciente = get_paciente_by_numero_documento(db, numero_documento=paciente.numero_documento)
