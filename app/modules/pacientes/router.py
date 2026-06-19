@@ -217,3 +217,13 @@ def get_metricas_paciente(paciente_id: int, db: Session = Depends(get_db)):
     Citas médicas, balance de recetas y tendencia mensual de visitas.
     """
     return obtener_metricas_personales_paciente(db, paciente_id=paciente_id)
+
+@router.get("/paciente/{id}/check-recordatorio")
+async def verificar_recordatorio_cita(id: int, db: Session = Depends(get_db)):
+    """
+    [POPUP] Endpoint para que React consulte si el paciente tiene una cita pronta
+    a menos de 3 días en el microservicio clínico de la otra sección.
+    """
+    # Llama a la lógica de negocio que evalúa las fechas de las citas
+    return await service.get_check_recordatorio_cita(db=db, paciente_id=id)
+
