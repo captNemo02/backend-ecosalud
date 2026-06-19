@@ -155,9 +155,9 @@ from fastapi import HTTPException
 # URL base del Swagger del Grupo de Clínica
 CLINICA_SERVICE_URL = "https://api-clinica-soa.onrender.com/" # <-- Asegúrate de que sea la URL real de ellos
 
-async def check_proxima_cita(paciente_id: int):
+async def get_check_recordatorio_cita(paciente_id: int, db: Session = None):
     """
-    Consume las citas de clínica, busca la más cercana en el futuro 
+    [POPUP] Consume las citas de clínica, busca la más cercana en el futuro 
     y le avisa a React si debe mostrar el Popup.
     """
     async with httpx.AsyncClient() as client:
