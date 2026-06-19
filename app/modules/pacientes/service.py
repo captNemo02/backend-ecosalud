@@ -148,10 +148,6 @@ async def get_recetas_by_paciente_remoto(paciente_id: int):
                 detail="No se pudo establecer comunicación con el microservicio de doctores (Servicio Temporalmente No Disponible)."
             )
         
-        from datetime import datetime, date
-import httpx
-from fastapi import HTTPException
-
 # URL base del Swagger del Grupo de Clínica
 CLINICA_SERVICE_URL = "https://api-clinica-soa.onrender.com/" # <-- Asegúrate de que sea la URL real de ellos
 
