@@ -153,7 +153,7 @@ import httpx
 from fastapi import HTTPException
 
 # URL base del Swagger del Grupo de Clínica
-CLINICA_SERVICE_URL = "https://servicioclinica.onrender.com" # <-- Asegúrate de que sea la URL real de ellos
+CLINICA_SERVICE_URL = "https://api-clinica-soa.onrender.com/" # <-- Asegúrate de que sea la URL real de ellos
 
 async def check_proxima_cita(paciente_id: int):
     """
