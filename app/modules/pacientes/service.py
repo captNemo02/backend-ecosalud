@@ -42,6 +42,12 @@ def get_pacientes(
     return query.order_by(models.Paciente.id.asc()).all()
 
 def create_paciente(db: Session, paciente: schemas.PacienteCreate):
+    if paciente.fecha_nacimiento > date.today():
+        raise HTTPException(
+            status_code=400, 
+            detail="La fecha de nacimiento no puede ser posterior a la fecha actual."
+        )
+
     db_paciente = get_paciente_by_numero_documento(db, numero_documento=paciente.numero_documento)
     if db_paciente:
         raise HTTPException(status_code=400, detail="El paciente con este número de documento ya está registrado")
@@ -60,6 +66,13 @@ def update_paciente(db: Session, paciente_id: int, paciente_update: schemas.Paci
     # Extraer solo los datos que el usuario envió (que no son nulos)
     update_data = paciente_update.model_dump(exclude_unset=True)
     
+    if "fecha_nacimiento" in update_data and update_data["fecha_nacimiento"] is not None:
+        if update_data["fecha_nacimiento"] > date.today():
+            raise HTTPException(
+                status_code=400, 
+                detail="La fecha de nacimiento no puede ser posterior a la fecha actual."
+            )
+            
     for key, value in update_data.items():
         setattr(db_paciente, key, value)
         
