@@ -1,3 +1,4 @@
+from datetime import datetime, date
 import httpx
 from sqlalchemy.orm import Session
 from . import models
@@ -112,11 +113,11 @@ def get_ordenes_medicas_by_paciente(db: Session, paciente_id: int):
     return db.query(models.OrdenMedica).filter(models.OrdenMedica.paciente_id == paciente_id).order_by(models.OrdenMedica.id.desc()).all()
 
 # ==========================================
-# CONEXIÓN CON MICROSERVICIO EXTERNO DOCTORES
+# CONEXIÓN CON MICROSERVICIOS EXTERNOS
 # ==========================================
 
-# URL base que me pasaste del Swagger del Grupo de Doctores (sin el /docs)
 DOCTORES_SERVICE_URL = "https://serviciodoctor.onrender.com"
+CLINICA_SERVICE_URL = "https://api-clinica-soa.onrender.com/"
 
 async def get_recetas_by_paciente_remoto(paciente_id: int):
     """
@@ -125,31 +126,22 @@ async def get_recetas_by_paciente_remoto(paciente_id: int):
     """
     async with httpx.AsyncClient() as client:
         try:
-            # Construimos la URL apuntando al endpoint exacto de doctores
             url_final = f"{DOCTORES_SERVICE_URL}/doctor/recetas-paciente"
-            
-            # Hacemos la consulta pasando el paciente_id como parámetro (?paciente_id=X)
             response = await client.get(url_final, params={"paciente_id": paciente_id})
             
-            # Si el microservicio de doctores responde con un código de error
             if response.status_code != 200:
                 raise HTTPException(
                     status_code=502, 
                     detail="El microservicio de doctores no respondió correctamente o el paciente no tiene recetas."
                 )
             
-            # Si todo está bien, devolvemos el JSON con las recetas al router
             return response.json()
             
         except httpx.RequestError:
-            # En caso de que el servidor de doctores esté caído o lento
             raise HTTPException(
                 status_code=503, 
-                detail="No se pudo establecer comunicación con el microservicio de doctores (Servicio Temporalmente No Disponible)."
+                detail="No se pudo establecer comunicación con el microservicio de doctores (Servicio Tempormente No Disponible)."
             )
-        
-# URL base del Swagger del Grupo de Clínica
-CLINICA_SERVICE_URL = "https://api-clinica-soa.onrender.com/" # <-- Asegúrate de que sea la URL real de ellos
 
 async def get_check_recordatorio_cita(paciente_id: int, db: Session = None):
     """
@@ -158,23 +150,18 @@ async def get_check_recordatorio_cita(paciente_id: int, db: Session = None):
     """
     async with httpx.AsyncClient() as client:
         try:
-            # 1. Llamamos al endpoint general de Clínica
             url = f"{CLINICA_SERVICE_URL}/clinica/citas"
             response = await client.get(url)
             
             if response.status_code != 200:
-                # Si el servicio de ellos falla, devolvemos falso para que tu app no se caiga
                 return {"show_popup": False, "cita": None}
             
             todas_las_citas = response.json()
-            
-            # 2. Filtramos en Python solo las citas de tu paciente
             citas_paciente = [c for c in todas_las_citas if c.get("paciente_id") == paciente_id]
             
             citas_futuras = []
             fecha_hoy = date.today()
             
-            # 3. Buscamos solo las citas que sean para hoy o días posteriores
             for cita in citas_paciente:
                 try:
                     fecha_cita = datetime.strptime(cita.get("fecha"), "%Y-%m-%d").date()
@@ -183,17 +170,14 @@ async def get_check_recordatorio_cita(paciente_id: int, db: Session = None):
                 except (ValueError, TypeError):
                     continue
             
-            # Si no tiene citas futuras, le decimos a React que no abra ningún popup
             if not citas_futuras:
                 return {"show_popup": False, "cita": None}
             
-            # 4. Ordenamos para agarrar la más cercana en el calendario
             citas_futuras.sort(key=lambda x: x[0])
             proxima_fecha, proxima_cita = citas_futuras[0]
             
             dias_restantes = (proxima_fecha - fecha_hoy).days
             
-            # REGLA: Si la cita es dentro de los próximos 3 días, activamos el popup
             if dias_restantes <= 3:
                 return {
                     "show_popup": True,
@@ -204,5 +188,4 @@ async def get_check_recordatorio_cita(paciente_id: int, db: Session = None):
             return {"show_popup": False, "cita": None}
             
         except httpx.RequestError:
-            # Si el servidor de clínica está apagado, protegemos tu app devolviendo False
             return {"show_popup": False, "cita": None}
