@@ -20,16 +20,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 1. Definimos las URLs explícitas de producción y desarrollo local
-origins = [
-    "http://localhost:5173",                  # Para tus pruebas en local
-    "https://frontend-ecosalud.onrender.com"  # Tu frontend real en Render
-]
-
-# 2. Configurar middleware de CORS acoplando la lista de orígenes de forma correcta
+# 1. Configurar middleware de CORS para permitir cualquier origen dinámicamente con credenciales
+# Usamos allow_origin_regex para aceptar peticiones de cualquier sitio (http o https)
+# de forma que tus compañeros puedan consumirlo desde cualquier puerto local o dominio.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # <-- Ya no usamos "*", usamos la lista segura
+    allow_origins=[],            # Dejamos vacía la lista estática
+    allow_origin_regex=r"https?://.*",  # Permite cualquier origen dinámicamente (http:// o https://)
     allow_credentials=True,      # Requerido para el manejo de tus tokens y sesiones
     allow_methods=["*"],         # Permitir todos los métodos (GET, POST, PATCH, etc.)
     allow_headers=["*"],         # Permitir todas las cabeceras de autenticación
