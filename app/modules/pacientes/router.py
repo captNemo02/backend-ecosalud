@@ -199,7 +199,7 @@ def estadisticas_resumen(
     """
     Devuelve indicadores generales de pacientes.
     """
-    return obtener_resumen(db)
+    return obtener_indicadores_direccion_pacientes(db)
 
 @router.get("/clinica/direccion/gestion-pacientes")
 def estadisticas_direccion_pacientes(
