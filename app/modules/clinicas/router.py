@@ -43,26 +43,7 @@ def listar_sedes(db: Session = Depends(get_db)):
     """
     return service.obtener_sedes(db=db)
 
-@router.get("/citas/paciente/{paciente_id}", response_model=List[schemas.CitaResponse])
-def listar_citas_por_paciente(paciente_id: int, db: Session = Depends(get_db)):
-    """
-    Obtiene la lista de todas las citas asociadas a un paciente específico.
-    """
-    return service.obtener_citas_por_paciente(db=db, paciente_id=paciente_id)
 
-@router.get("/citas", response_model=List[schemas.CitaResponse])
-def listar_todas_citas(db: Session = Depends(get_db)):
-    """
-    Obtiene la lista de todas las citas registradas en el sistema.
-    """
-    return service.obtener_todas_citas(db=db)
-
-@router.post("/cita", response_model=schemas.CitaResponse, status_code=status.HTTP_201_CREATED)
-def crear_cita(cita: schemas.CitaCreate, db: Session = Depends(get_db)):
-    """
-    [MÓDULO CLÍNICA] Registra una nueva cita médica en el sistema para un paciente.
-    """
-    return service.registrar_cita(db=db, cita=cita)
 
 @router.get("/citas/{fecha}", response_model=List[schemas.CitaResponse])
 def listar_citas_por_fecha(fecha: date, db: Session = Depends(get_db)):

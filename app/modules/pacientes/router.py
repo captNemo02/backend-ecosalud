@@ -211,12 +211,12 @@ def estadisticas_direccion_pacientes(
     """
     return obtener_indicadores_direccion_pacientes(db)
 @router.get("/dashboard/metricas-personales/{paciente_id}")
-def get_metricas_paciente(paciente_id: int, db: Session = Depends(get_db)):
+async def get_metricas_paciente(paciente_id: int, db: Session = Depends(get_db)):
     """
     Retorna los 3 gráficos clave de control personal para el portal del paciente:
     Citas médicas, balance de recetas y tendencia mensual de visitas.
     """
-    return obtener_metricas_personales_paciente(db, paciente_id=paciente_id)
+    return await obtener_metricas_personales_paciente(db, paciente_id=paciente_id)
 
 @router.get("/paciente/{id}/check-recordatorio")
 async def verificar_recordatorio_cita(id: int, db: Session = Depends(get_db)):

@@ -151,13 +151,12 @@ async def get_check_recordatorio_cita(paciente_id: int, db: Session = None):
     async with httpx.AsyncClient() as client:
         try:
             url = f"{CLINICA_SERVICE_URL}/clinica/citas"
-            response = await client.get(url)
+            response = await client.get(url, params={"paciente_id": paciente_id})
             
             if response.status_code != 200:
                 return {"show_popup": False, "cita": None}
             
-            todas_las_citas = response.json()
-            citas_paciente = [c for c in todas_las_citas if c.get("paciente_id") == paciente_id]
+            citas_paciente = response.json()
             
             citas_futuras = []
             fecha_hoy = date.today()
