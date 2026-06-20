@@ -147,13 +147,13 @@ def obtener_historial_clinico(id: int, db: Session = Depends(get_db)):
     return service.get_historial_clinico_by_paciente(db=db, paciente_id=id)
 
 @router.get("/paciente/{id}/recetas-remotas")
-async def obtener_recetas_remotas(id: int):
+async def obtener_recetas_remotas(id: int, db: Session = Depends(get_db)):
     """
     [MICROSERVICIOS] Obtiene las recetas médicas reales del paciente 
     consumiendo en tiempo real el Microservicio de Doctores en Render.
     """
-    # Llamamos a la función asíncrona que creamos en service.py
-    return await service.get_recetas_by_paciente_remoto(paciente_id=id)
+    # Ahora le pasamos el id Y la sesión de la base de datos (db)
+    return await service.get_recetas_by_paciente_remoto(paciente_id=id, db=db)
     
 @router.get("/paciente/{id}/recetas", response_model=List[schemas.RecetaResponse])
 def obtener_recetas(id: int, db: Session = Depends(get_db)):
