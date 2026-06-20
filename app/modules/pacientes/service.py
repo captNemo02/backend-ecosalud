@@ -132,23 +132,39 @@ def get_ordenes_medicas_by_paciente(db: Session, paciente_id: int):
 DOCTORES_SERVICE_URL = "https://serviciodoctor.onrender.com"
 CLINICA_SERVICE_URL = "https://api-clinica-soa.onrender.com/"
 
-async def get_recetas_by_paciente_remoto(paciente_id: int, db: Session):
-    # Buscamos al paciente en tu BD para obtener su número de documento
-    paciente = db.query(models.Paciente).filter(models.Paciente.id == paciente_id).first()
-    if not paciente:
-        raise HTTPException(status_code=404, detail="Paciente no encontrado")
-    
+async def get_recetas_by_paciente_remoto(paciente_id: int):
+    """
+    Se conecta vía HTTP con el microservicio de doctores enviando el paciente_id
+    y el doctor_id requerido por su endpoint sin necesidad de token.
+    """
     async with httpx.AsyncClient() as client:
         try:
             url_final = f"{DOCTORES_SERVICE_URL}/doctor/recetas-paciente"
-            # Le enviamos el DNI en el parámetro "dni" que él te pidió
-            response = await client.get(url_final, params={"dni": paciente.numero_documento})
             
+            # Aquí armamos los dos parámetros que su Swagger exige
+            parametros = {
+                "paciente_id": paciente_id,
+                "doctor_id": 1  # Enviamos un ID por defecto para saltar su campo obligatorio
+            }
+            
+            # Hacemos la consulta pasando los parámetros (?paciente_id=X&doctor_id=1)
+            response = await client.get(url_final, params=parametros)
+            
+            # Si el microservicio de doctores responde con un código de error
             if response.status_code != 200:
-                raise HTTPException(status_code=502, detail="Error en el microservicio de doctores.")
+                raise HTTPException(
+                    status_code=502, 
+                    detail="El microservicio de doctores no respondió correctamente o el paciente no tiene recetas."
+                )
+            
+            # Si todo está bien, devolvemos el JSON con las recetas
             return response.json()
+            
         except httpx.RequestError:
-            raise HTTPException(status_code=503, detail="Servicio no disponible.")
+            raise HTTPException(
+                status_code=503, 
+                detail="No se pudo establecer comunicación con el microservicio de doctores."
+            )
 async def get_check_recordatorio_cita(paciente_id: int, db: Session = None):
     """
     [POPUP] Consume las citas de clínica, busca la más cercana en el futuro 
