@@ -132,41 +132,36 @@ def get_ordenes_medicas_by_paciente(db: Session, paciente_id: int):
 DOCTORES_SERVICE_URL = "https://serviciodoctor.onrender.com"
 CLINICA_SERVICE_URL = "https://api-clinica-soa.onrender.com/"
 
-async def get_recetas_by_paciente_remoto(paciente_id: int, db: Session):
+async def get_recetas_by_paciente_remoto(paciente_id: int):
     """
     Se conecta vía HTTP con el microservicio de doctores para obtener 
-    las recetas reales emitidas a este paciente usando su DNI.
+    las recetas reales emitidas a este paciente.
     """
-    # 1. Buscamos el paciente en TU base de datos usando el id que viene de React
-    paciente = db.query(models.Paciente).filter(models.Paciente.id == paciente_id).first()
-    
-    if not paciente:
-        raise HTTPException(status_code=404, detail="Paciente no encontrado en el sistema.")
-
-    # 2. Extraemos su número de documento (DNI)
-    dni_paciente = paciente.numero_documento
-
     async with httpx.AsyncClient() as client:
         try:
+            # Construimos la URL apuntando al endpoint exacto de doctores
             url_final = f"{DOCTORES_SERVICE_URL}/doctor/recetas-paciente"
             
-            # Cambiamos el parámetro "paciente_id" por "dni" (o el nombre exacto que use tu compañero)
-            response = await client.get(url_final, params={"dni": dni_paciente})
+            # Hacemos la consulta pasando el paciente_id como parámetro (?paciente_id=X)
+            response = await client.get(url_final, params={"paciente_id": paciente_id})
             
+            # Si el microservicio de doctores responde con un código de error
             if response.status_code != 200:
                 raise HTTPException(
                     status_code=502, 
                     detail="El microservicio de doctores no respondió correctamente o el paciente no tiene recetas."
                 )
             
+            # Si todo está bien, devolvemos el JSON con las recetas al router
             return response.json()
             
         except httpx.RequestError:
+            # En caso de que el servidor de doctores esté caído o lento
             raise HTTPException(
                 status_code=503, 
                 detail="No se pudo establecer comunicación con el microservicio de doctores (Servicio Temporalmente No Disponible)."
             )
-
+        
 async def get_check_recordatorio_cita(paciente_id: int, db: Session = None):
     """
     [POPUP] Consume las citas de clínica, busca la más cercana en el futuro 
