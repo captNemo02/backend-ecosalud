@@ -161,7 +161,6 @@ async def get_recetas_by_paciente_remoto(paciente_id: int):
                 status_code=503, 
                 detail="No se pudo establecer comunicación con el microservicio de doctores (Servicio Temporalmente No Disponible)."
             )
-        
 async def get_check_recordatorio_cita(paciente_id: int, db: Session = None):
     """
     [POPUP] Consume las citas de clínica, busca la más cercana en el futuro 
