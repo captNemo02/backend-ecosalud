@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from . import schemas, service
+from .recetas_service import get_recetas_by_paciente_remoto
 from .estadisticas import obtener_metricas_personales_paciente
 from .analiticas import obtener_indicadores_direccion_pacientes
 from .auth import get_current_paciente_id, create_access_token, create_refresh_token, verify_jwt
@@ -147,26 +148,13 @@ def obtener_historial_clinico(id: int, db: Session = Depends(get_db)):
     return service.get_historial_clinico_by_paciente(db=db, paciente_id=id)
 
 @router.get("/paciente/{id}/recetas-remotas")
-async def obtener_recetas_remotas(id: int, db: Session = Depends(get_db)):
+async def obtener_recetas_remotas(id: int):
     """
     [MICROSERVICIOS] Obtiene las recetas médicas reales del paciente 
     consumiendo en tiempo real el Microservicio de Doctores en Render.
     """
-    # Enviamos el id y agregamos la sesión de la base de datos (db)
-    return await service.get_recetas_by_paciente_remoto(paciente_id=id, db=db)
+    return await get_recetas_by_paciente_remoto(paciente_id=id)
     
-@router.get("/paciente/{id}/recetas", response_model=List[schemas.RecetaResponse])
-def obtener_recetas(id: int, db: Session = Depends(get_db)):
-    """
-    Obtiene todas las recetas médicas asociadas a un paciente específico.
-    """
-    # [COMENTADO POR SEGURIDAD / ACCESO PÚBLICO]
-    # if current_paciente_id != id:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Acceso denegado. No está autorizado para ver estas recetas."
-    #     )
-    return service.get_recetas_by_paciente(db=db, paciente_id=id)
 
 @router.get("/paciente/{id}/ordenes-medicas", response_model=List[schemas.OrdenMedicaResponse])
 def obtener_ordenes_medicas(id: int, db: Session = Depends(get_db)):
