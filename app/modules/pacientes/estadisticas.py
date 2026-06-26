@@ -7,7 +7,7 @@ import httpx
 from datetime import datetime
 
 # Importamos los modelos de tus esquemas correspondientes
-from app.modules.pacientes.models import Receta, Paciente
+from app.modules.pacientes.models import Paciente
 
 async def obtener_metricas_personales_paciente(db: Session, paciente_id: int):
     try:
@@ -46,28 +46,27 @@ async def obtener_metricas_personales_paciente(db: Session, paciente_id: int):
         # Cuenta tus recetas emitidas según su estado actual: VIGENTE, ENTREGADO, CADUCADO
         recetas_paciente = []
 
-async with httpx.AsyncClient(timeout=15.0) as client:
-    try:
-        url_recetas = f"https://serviciodoctor.onrender.com/pacientes/{paciente_id}/recetas"
-        response_recetas = await client.get(url_recetas)
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            try:
+                url_recetas = f"https://serviciodoctor.onrender.com/pacientes/{paciente_id}/recetas"
+                response_recetas = await client.get(url_recetas)
 
-        if response_recetas.status_code == 200:
-            recetas_paciente = response_recetas.json()
-    except Exception as e:
-        print(f"Error al obtener recetas remotas para estadísticas: {e}")
+                if response_recetas.status_code == 200:
+                    recetas_paciente = response_recetas.json()
+            except Exception as e:
+                print(f"Error al obtener recetas remotas para estadísticas: {e}")
 
-counts_recetas = {}
+        counts_recetas = {}
 
-for r in recetas_paciente:
-    estado = r.get("estado")
-    estado_key = estado.upper() if estado else "SIN ESTADO"
-    counts_recetas[estado_key] = counts_recetas.get(estado_key, 0) + 1
+        for r in recetas_paciente:
+            estado = r.get("estado")
+            estado_key = estado.upper() if estado else "SIN ESTADO"
+            counts_recetas[estado_key] = counts_recetas.get(estado_key, 0) + 1
 
-grafico_recetas = [
-    {"estado": k, "cantidad": v}
-    for k, v in counts_recetas.items()
-]
-
+        grafico_recetas = [
+            {"estado": k, "cantidad": v}
+            for k, v in counts_recetas.items()
+        ]
         # --- GRÁFICO 3: EVOLUCIÓN MENSUAL DE MIS VISITAS (Line Chart / Líneas) ---
         # Agrupa cronológicamente todas tus citas por mes para evaluar tu tendencia de salud
         tendencia = {}
