@@ -1,46 +1,39 @@
 import httpx
 from fastapi import HTTPException
 
-# URL del microservicio de doctores
 DOCTORES_SERVICE_URL = "https://serviciodoctor.onrender.com"
 
 
 async def get_recetas_by_paciente_remoto(paciente_id: int):
-    """
-    Obtiene las recetas de un paciente consumiendo el microservicio
-    de doctores mediante HTTP.
-    """
-
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=15.0) as client:
         try:
             response = await client.get(
-                f"{DOCTORES_SERVICE_URL}/doctor/recetas-paciente",
-                params={
-                    "paciente_id": paciente_id,
-                    "doctor_id": 1   # ID temporal mientras el endpoint lo requiera
-                }
+                f"{DOCTORES_SERVICE_URL}/pacientes/{paciente_id}/recetas"
             )
 
-            # Lanza excepción si devuelve 4xx o 5xx
+            if response.status_code == 404:
+                return {
+                    "paciente_id": paciente_id,
+                    "recetas": []
+                }
+
             response.raise_for_status()
 
-            # Devuelve las recetas en formato JSON
-            return response.json()
+            data = response.json()
 
-        except httpx.HTTPStatusError as e:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Error del microservicio de doctores: {e.response.text}"
-            )
+            return {
+                "paciente_id": paciente_id,
+                "recetas": data
+            }
 
         except httpx.RequestError:
             raise HTTPException(
                 status_code=503,
-                detail="No fue posible conectarse con el microservicio de doctores."
+                detail="No se pudo conectar con el microservicio de doctores."
             )
 
-        except Exception as e:
+        except httpx.HTTPStatusError:
             raise HTTPException(
-                status_code=500,
-                detail=f"Error inesperado: {str(e)}"
+                status_code=502,
+                detail="Error al consultar recetas en el microservicio de doctores."
             )
