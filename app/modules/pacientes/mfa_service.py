@@ -70,6 +70,55 @@ def send_mfa_resend(email: str, nombres: str, code: str, html_content: str) -> b
         print(f"[MFA - Resend] Error al enviar via Resend API: {e}")
         return False
 
+def send_mfa_brevo(email: str, nombres: str, code: str, html_content: str) -> bool:
+    brevo_api_key = os.getenv("BREVO_API_KEY")
+    if not brevo_api_key:
+        return False
+
+    brevo_sender_email = os.getenv("BREVO_SENDER_EMAIL", "leonardosalaza291@gmail.com")
+    brevo_sender_name = os.getenv("BREVO_SENDER_NAME", "ECOSALUD")
+
+    print(f"[MFA - Brevo] Enviando código {code} a {email} via Brevo...")
+
+    headers = {
+        "accept": "application/json",
+        "api-key": brevo_api_key,
+        "content-type": "application/json"
+    }
+
+    payload = {
+        "sender": {
+            "name": brevo_sender_name,
+            "email": brevo_sender_email
+        },
+        "to": [
+            {
+                "email": email,
+                "name": nombres
+            }
+        ],
+        "subject": f"{code} es tu código de verificación de ECOSALUD",
+        "htmlContent": html_content
+    }
+
+    try:
+        import httpx
+        response = httpx.post(
+            "https://api.brevo.com/v3/smtp/email",
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        if response.status_code in (200, 201, 202):
+            print(f"[MFA - Brevo] Correo enviado exitosamente via Brevo a {email}")
+            return True
+        else:
+            print(f"[MFA - Brevo] Error de Brevo API ({response.status_code}): {response.text}")
+            return False
+    except Exception as e:
+        print(f"[MFA - Brevo] Error al enviar via Brevo API: {e}")
+        return False
+
 def send_mfa_email(email: str, nombres: str, code: str) -> bool:
     html = f"""
     <html>
@@ -89,13 +138,19 @@ def send_mfa_email(email: str, nombres: str, code: str) -> bool:
     </html>
     """
 
-    # 1. Intentar enviar con Resend API (si está configurada su API Key)
+    # 1. Intentar enviar con Brevo API (si está configurada su API Key)
+    if os.getenv("BREVO_API_KEY"):
+        bre_success = send_mfa_brevo(email, nombres, code, html)
+        if bre_success:
+            return True
+
+    # 2. Intentar enviar con Resend API (si está configurada su API Key)
     if os.getenv("RESEND_API_KEY"):
         res_success = send_mfa_resend(email, nombres, code, html)
         if res_success:
             return True
 
-    # 2. Fallback a SMTP tradicional (si está configurado)
+    # 3. Fallback a SMTP tradicional (si está configurado)
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port_str = os.getenv("SMTP_PORT", "587")
     smtp_user = os.getenv("SMTP_USER")
@@ -103,7 +158,7 @@ def send_mfa_email(email: str, nombres: str, code: str) -> bool:
     smtp_sender = os.getenv("SMTP_SENDER", "no-reply@ecosalud.com")
 
     if not smtp_host or not smtp_user or not smtp_password:
-        print("[MFA] SMTP no configurado (y Resend API no configurada o falló). Se omite el envío de correo.")
+        print("[MFA] SMTP no configurado (y Resend/Brevo API no configuradas o fallaron). Se omite el envío de correo.")
         return False
 
     try:
