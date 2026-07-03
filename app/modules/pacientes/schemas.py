@@ -87,6 +87,17 @@ class PacienteLogin(BaseModel):
     email: EmailStr
     numero_documento: str
 
+class LoginResponse(BaseModel):
+    mfa_required: bool
+    mfa_token: Optional[str] = None
+    email_masked: Optional[str] = None
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    token_type: Optional[str] = "bearer"
+    paciente_id: Optional[int] = None
+    nombres: Optional[str] = None
+    apellidos: Optional[str] = None
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
@@ -97,6 +108,13 @@ class TokenResponse(BaseModel):
 
 class TokenRefreshRequest(BaseModel):
     refresh_token: str
+
+class MFAVerifyRequest(BaseModel):
+    mfa_token: str
+    code: str
+
+class MFAResendRequest(BaseModel):
+    mfa_token: str
 
 
 # --- Orden Medica Schemas ---

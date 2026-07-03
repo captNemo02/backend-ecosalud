@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime, timedelta
 from app.database import get_db
 from . import schemas, service
 from .recetas_service import get_recetas_by_paciente_remoto
 from .estadisticas import obtener_metricas_personales_paciente
 from .analiticas import obtener_indicadores_direccion_pacientes
-from .auth import get_current_paciente_id, create_access_token, create_refresh_token, verify_jwt
+from .auth import get_current_paciente_id, create_access_token, create_refresh_token, verify_jwt, create_jwt
+from .mfa_service import generate_mfa_code, send_mfa_code
 
 router = APIRouter(
     tags=["Pacientes & Autenticación"]
@@ -14,11 +16,23 @@ router = APIRouter(
 
 # --- Autenticación ---
 
-@router.post("/paciente/login", response_model=schemas.TokenResponse)
+def mask_email(email: str) -> str:
+    try:
+        parts = email.split('@')
+        if len(parts) != 2:
+            return email
+        name, domain = parts
+        if len(name) <= 2:
+            return f"{name[0]}*@{domain}"
+        return f"{name[0]}{'*' * (len(name) - 2)}{name[-1]}@{domain}"
+    except Exception:
+        return email
+
+@router.post("/paciente/login", response_model=schemas.LoginResponse)
 def login_paciente(login_data: schemas.PacienteLogin, db: Session = Depends(get_db)):
     """
     Inicia sesión de un paciente validando su correo y su número de documento (DNI).
-    Genera un access token (válido por 15 minutos) y un refresh token (válido por 24 horas).
+    Genera un código MFA, lo envía al paciente y retorna un token MFA temporal de 5 minutos.
     """
     paciente = service.get_paciente_by_email_and_documento(
         db, email=login_data.email, numero_documento=login_data.numero_documento
@@ -35,6 +49,64 @@ def login_paciente(login_data: schemas.PacienteLogin, db: Session = Depends(get_
             detail="La cuenta del paciente está INACTIVA. Póngase en contacto con administración."
         )
         
+    # Flujo de MFA
+    code = generate_mfa_code()
+    paciente.mfa_code = code
+    paciente.mfa_code_expires_at = datetime.now() + timedelta(minutes=5)
+    db.commit()
+    
+    # Enviar código MFA (consola/archivo y SMTP si está configurado)
+    send_mfa_code(paciente.email, f"{paciente.nombres} {paciente.apellidos}", code)
+    
+    # Generar token MFA temporal (5 minutos de validez)
+    mfa_token = create_jwt({"sub": str(paciente.id), "type": "mfa"}, 300)
+    
+    return {
+        "mfa_required": True,
+        "mfa_token": mfa_token,
+        "email_masked": mask_email(paciente.email)
+    }
+
+@router.post("/paciente/verify-mfa", response_model=schemas.TokenResponse)
+def verify_mfa(verify_data: schemas.MFAVerifyRequest, db: Session = Depends(get_db)):
+    """
+    Verifica el código de doble factor (MFA) provisto por el paciente.
+    Si coincide y está vigente, entrega los tokens de acceso definitivos.
+    """
+    payload = verify_jwt(verify_data.mfa_token)
+    if not payload or payload.get("type") != "mfa":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token MFA inválido o expirado. Inicie sesión nuevamente."
+        )
+        
+    paciente_id = int(payload.get("sub"))
+    paciente = service.get_paciente_by_id(db, paciente_id=paciente_id)
+    if not paciente:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Paciente no encontrado."
+        )
+        
+    # Verificar código y expiración
+    if not paciente.mfa_code or paciente.mfa_code != verify_data.code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El código de verificación ingresado es incorrecto."
+        )
+        
+    if not paciente.mfa_code_expires_at or paciente.mfa_code_expires_at < datetime.now():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El código de verificación ha expirado. Por favor, solicite uno nuevo."
+        )
+        
+    # Limpiar campos de MFA de la base de datos
+    paciente.mfa_code = None
+    paciente.mfa_code_expires_at = None
+    db.commit()
+    
+    # Generar access y refresh tokens finales
     access_token = create_access_token(paciente.id)
     refresh_token = create_refresh_token(paciente.id)
     
@@ -45,6 +117,50 @@ def login_paciente(login_data: schemas.PacienteLogin, db: Session = Depends(get_
         "paciente_id": paciente.id,
         "nombres": paciente.nombres,
         "apellidos": paciente.apellidos
+    }
+
+@router.post("/paciente/resend-mfa", response_model=schemas.LoginResponse)
+def reenviar_mfa(resend_data: schemas.MFAResendRequest, db: Session = Depends(get_db)):
+    """
+    Reenvía un nuevo código de MFA utilizando el token de MFA temporal provisto.
+    """
+    payload = verify_jwt(resend_data.mfa_token)
+    if not payload or payload.get("type") != "mfa":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token MFA inválido o expirado. Inicie sesión de nuevo."
+        )
+        
+    paciente_id = int(payload.get("sub"))
+    paciente = service.get_paciente_by_id(db, paciente_id=paciente_id)
+    if not paciente:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Paciente no encontrado."
+        )
+        
+    if paciente.estado != "ACTIVO":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cuenta inactiva."
+        )
+        
+    # Generar nuevo código MFA
+    code = generate_mfa_code()
+    paciente.mfa_code = code
+    paciente.mfa_code_expires_at = datetime.now() + timedelta(minutes=5)
+    db.commit()
+    
+    # Enviar
+    send_mfa_code(paciente.email, f"{paciente.nombres} {paciente.apellidos}", code)
+    
+    # Nuevo token MFA temporal
+    new_mfa_token = create_jwt({"sub": str(paciente.id), "type": "mfa"}, 300)
+    
+    return {
+        "mfa_required": True,
+        "mfa_token": new_mfa_token,
+        "email_masked": mask_email(paciente.email)
     }
 
 @router.post("/paciente/refresh")
