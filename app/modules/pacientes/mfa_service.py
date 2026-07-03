@@ -29,28 +29,48 @@ def log_mfa_code_locally(email: str, code: str):
     print(f"  Ver archivo de logs en: {LOG_FILE_PATH}")
     print("=" * 60 + "\n")
 
-def send_mfa_email(email: str, nombres: str, code: str) -> bool:
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_port_str = os.getenv("SMTP_PORT", "587")
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-    smtp_sender = os.getenv("SMTP_SENDER", "no-reply@ecosalud.com")
-
-    # Si falta la configuración básica, se omite el envío
-    if not smtp_host or not smtp_user or not smtp_password:
-        print("[MFA] SMTP no configurado en variables de entorno. Omitiendo envío de correo.")
+def send_mfa_resend(email: str, nombres: str, code: str, html_content: str) -> bool:
+    resend_api_key = os.getenv("RESEND_API_KEY")
+    if not resend_api_key:
         return False
 
+    # Por defecto en desarrollo libre con Resend se usa el remitente "onboarding@resend.dev"
+    # pero puedes cambiarlo a tu dominio configurando RESEND_SENDER
+    resend_sender = os.getenv("RESEND_SENDER", "onboarding@resend.dev")
+
+    print(f"[MFA - Resend] Enviando código {code} a {email}...")
+
+    headers = {
+        "Authorization": f"Bearer {resend_api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "from": resend_sender,
+        "to": [email],
+        "subject": f"{code} es tu código de verificación de ECOSALUD",
+        "html": html_content
+    }
+
     try:
-        smtp_port = int(smtp_port_str)
-    except ValueError:
-        smtp_port = 587
+        import httpx
+        response = httpx.post(
+            "https://api.resend.com/emails",
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        if response.status_code in (200, 201):
+            print(f"[MFA - Resend] Correo enviado exitosamente via Resend a {email}")
+            return True
+        else:
+            print(f"[MFA - Resend] Error de Resend API ({response.status_code}): {response.text}")
+            return False
+    except Exception as e:
+        print(f"[MFA - Resend] Error al enviar via Resend API: {e}")
+        return False
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = f"{code} es tu código de verificación de ECOSALUD"
-    msg['From'] = smtp_sender
-    msg['To'] = email
-
+def send_mfa_email(email: str, nombres: str, code: str) -> bool:
     html = f"""
     <html>
       <body style="font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333;">
@@ -68,6 +88,33 @@ def send_mfa_email(email: str, nombres: str, code: str) -> bool:
       </body>
     </html>
     """
+
+    # 1. Intentar enviar con Resend API (si está configurada su API Key)
+    if os.getenv("RESEND_API_KEY"):
+        res_success = send_mfa_resend(email, nombres, code, html)
+        if res_success:
+            return True
+
+    # 2. Fallback a SMTP tradicional (si está configurado)
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port_str = os.getenv("SMTP_PORT", "587")
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    smtp_sender = os.getenv("SMTP_SENDER", "no-reply@ecosalud.com")
+
+    if not smtp_host or not smtp_user or not smtp_password:
+        print("[MFA] SMTP no configurado (y Resend API no configurada o falló). Se omite el envío de correo.")
+        return False
+
+    try:
+        smtp_port = int(smtp_port_str)
+    except ValueError:
+        smtp_port = 587
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = f"{code} es tu código de verificación de ECOSALUD"
+    msg['From'] = smtp_sender
+    msg['To'] = email
     msg.attach(MIMEText(html, 'html'))
 
     try:
@@ -82,7 +129,7 @@ def send_mfa_email(email: str, nombres: str, code: str) -> bool:
         server.login(smtp_user, smtp_password)
         server.sendmail(smtp_sender, [email], msg.as_string())
         server.quit()
-        print(f"[MFA] Correo enviado exitosamente a {email}")
+        print(f"[MFA] Correo enviado exitosamente via SMTP a {email}")
         return True
     except Exception as e:
         print(f"[MFA] Error al enviar correo SMTP: {e}")
