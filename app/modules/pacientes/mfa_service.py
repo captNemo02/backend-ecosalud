@@ -72,9 +72,9 @@ def send_mfa_email(email: str, nombres: str, code: str) -> bool:
 
     try:
         if smtp_port == 465:
-            server = smtplib.SMTP_SSL(smtp_host, smtp_port)
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10)
         else:
-            server = smtplib.SMTP(smtp_host, smtp_port)
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
             server.ehlo()
             server.starttls()
             server.ehlo()

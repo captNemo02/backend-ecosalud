@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, timedelta
@@ -29,7 +29,7 @@ def mask_email(email: str) -> str:
         return email
 
 @router.post("/paciente/login", response_model=schemas.LoginResponse)
-def login_paciente(login_data: schemas.PacienteLogin, db: Session = Depends(get_db)):
+def login_paciente(login_data: schemas.PacienteLogin, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """
     Inicia sesión de un paciente validando su correo y su número de documento (DNI).
     Genera un código MFA, lo envía al paciente y retorna un token MFA temporal de 5 minutos.
@@ -55,8 +55,8 @@ def login_paciente(login_data: schemas.PacienteLogin, db: Session = Depends(get_
     paciente.mfa_code_expires_at = datetime.now() + timedelta(minutes=5)
     db.commit()
     
-    # Enviar código MFA (consola/archivo y SMTP si está configurado)
-    send_mfa_code(paciente.email, f"{paciente.nombres} {paciente.apellidos}", code)
+    # Enviar código MFA (consola/archivo y SMTP si está configurado) en segundo plano para no bloquear
+    background_tasks.add_task(send_mfa_code, paciente.email, f"{paciente.nombres} {paciente.apellidos}", code)
     
     # Generar token MFA temporal (5 minutos de validez)
     mfa_token = create_jwt({"sub": str(paciente.id), "type": "mfa"}, 300)
@@ -120,7 +120,7 @@ def verify_mfa(verify_data: schemas.MFAVerifyRequest, db: Session = Depends(get_
     }
 
 @router.post("/paciente/resend-mfa", response_model=schemas.LoginResponse)
-def reenviar_mfa(resend_data: schemas.MFAResendRequest, db: Session = Depends(get_db)):
+def reenviar_mfa(resend_data: schemas.MFAResendRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """
     Reenvía un nuevo código de MFA utilizando el token de MFA temporal provisto.
     """
@@ -151,8 +151,8 @@ def reenviar_mfa(resend_data: schemas.MFAResendRequest, db: Session = Depends(ge
     paciente.mfa_code_expires_at = datetime.now() + timedelta(minutes=5)
     db.commit()
     
-    # Enviar
-    send_mfa_code(paciente.email, f"{paciente.nombres} {paciente.apellidos}", code)
+    # Enviar en segundo plano para no bloquear
+    background_tasks.add_task(send_mfa_code, paciente.email, f"{paciente.nombres} {paciente.apellidos}", code)
     
     # Nuevo token MFA temporal
     new_mfa_token = create_jwt({"sub": str(paciente.id), "type": "mfa"}, 300)
