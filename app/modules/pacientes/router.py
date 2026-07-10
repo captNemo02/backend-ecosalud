@@ -70,6 +70,7 @@ def login_paciente(login_data: schemas.PacienteLogin, background_tasks: Backgrou
     return {
         "mfa_required": True,
         "mfa_token": mfa_token,
+        "token": mfa_token,
         "email": paciente.email
     }
 
@@ -166,6 +167,7 @@ def reenviar_mfa(resend_data: schemas.MFAResendRequest, background_tasks: Backgr
     return {
         "mfa_required": True,
         "mfa_token": new_mfa_token,
+        "token": new_mfa_token,
         "email": paciente.email
     }
 

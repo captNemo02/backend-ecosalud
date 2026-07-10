@@ -90,6 +90,7 @@ class PacienteLogin(BaseModel):
 class LoginResponse(BaseModel):
     mfa_required: bool
     mfa_token: Optional[str] = None
+    token: Optional[str] = None
     email: Optional[str] = None
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
