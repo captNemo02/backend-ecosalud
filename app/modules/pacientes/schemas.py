@@ -16,7 +16,7 @@ class PacienteBase(BaseModel):
     estado: Optional[str] = "ACTIVO"
 
 class PacienteCreate(PacienteBase):
-    pass
+    password: str
 
 class PacienteUpdate(BaseModel):
     nombres: Optional[str] = None
@@ -85,7 +85,7 @@ class RecetaResponse(RecetaBase):
 # --- Authentication Schemas ---
 class PacienteLogin(BaseModel):
     email: EmailStr
-    numero_documento: str
+    password: str
 
 class LoginResponse(BaseModel):
     mfa_required: bool

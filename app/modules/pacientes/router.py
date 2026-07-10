@@ -31,17 +31,35 @@ def mask_email(email: str) -> str:
 @router.post("/paciente/login", response_model=schemas.LoginResponse)
 def login_paciente(login_data: schemas.PacienteLogin, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """
-    Inicia sesión de un paciente validando su correo y su número de documento (DNI).
+    Inicia sesión de un paciente validando su correo y contraseña.
     Genera un código MFA, lo envía al paciente y retorna un token MFA temporal de 5 minutos.
     """
-    paciente = service.get_paciente_by_email_and_documento(
-        db, email=login_data.email, numero_documento=login_data.numero_documento
-    )
+    from .auth import verify_password, hash_password
+
+    paciente = service.get_paciente_by_email(db, email=login_data.email)
     if not paciente:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales incorrectas. Verifique su correo y DNI."
+            detail="Credenciales incorrectas. Verifique su correo y contraseña."
         )
+    
+    # Validar contraseña con retrocompatibilidad (DNI)
+    if not paciente.password_hash:
+        if login_data.password == paciente.numero_documento:
+            # Migrar usuario legacy: hashear DNI y guardar en BD
+            paciente.password_hash = hash_password(login_data.password)
+            db.commit()
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Credenciales incorrectas. Verifique su correo y contraseña."
+            )
+    else:
+        if not verify_password(login_data.password, paciente.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Credenciales incorrectas. Verifique su correo y contraseña."
+            )
     
     if paciente.estado != "ACTIVO":
         raise HTTPException(

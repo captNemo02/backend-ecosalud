@@ -8,6 +8,9 @@ from fastapi import HTTPException
 def get_paciente_by_numero_documento(db: Session, numero_documento: str):
     return db.query(models.Paciente).filter(models.Paciente.numero_documento == numero_documento).first()
 
+def get_paciente_by_email(db: Session, email: str):
+    return db.query(models.Paciente).filter(models.Paciente.email == email).first()
+
 def get_paciente_by_id(db: Session, paciente_id: int):
     return db.query(models.Paciente).filter(models.Paciente.id == paciente_id).first()
 
@@ -48,15 +51,26 @@ def create_paciente(db: Session, paciente: schemas.PacienteCreate):
             detail="La fecha de nacimiento no puede ser posterior a la fecha actual."
         )
 
-    db_paciente = get_paciente_by_numero_documento(db, numero_documento=paciente.numero_documento)
-    if db_paciente:
+    db_paciente_doc = get_paciente_by_numero_documento(db, numero_documento=paciente.numero_documento)
+    if db_paciente_doc:
         raise HTTPException(status_code=400, detail="El paciente con este número de documento ya está registrado")
     
-    db_paciente = models.Paciente(**paciente.model_dump())
+    if paciente.email:
+        db_paciente_email = get_paciente_by_email(db, email=paciente.email)
+        if db_paciente_email:
+            raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
+    
+    from .auth import hash_password
+    data = paciente.model_dump()
+    plain_password = data.pop("password")
+    data["password_hash"] = hash_password(plain_password)
+    
+    db_paciente = models.Paciente(**data)
     db.add(db_paciente)
     db.commit()
     db.refresh(db_paciente)
     return db_paciente
+
 
 def update_paciente(db: Session, paciente_id: int, paciente_update: schemas.PacienteUpdate):
     db_paciente = get_paciente_by_id(db, paciente_id)

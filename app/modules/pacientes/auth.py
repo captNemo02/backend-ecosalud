@@ -72,3 +72,34 @@ def get_current_paciente_id(credentials: HTTPAuthorizationCredentials = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return int(payload.get("sub"))
+
+
+# --- Password Hashing and Verification (PBKDF2) ---
+import secrets
+
+def hash_password(password: str) -> str:
+    """
+    Generates a secure PBKDF2 hash for the given password.
+    Format: salt$iterations$hash (hex encoded)
+    """
+    salt = secrets.token_bytes(16)
+    iterations = 100000
+    key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, iterations)
+    return f"{salt.hex()}${iterations}${key.hex()}"
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verifies a plain password against the stored PBKDF2 hash.
+    """
+    try:
+        if not hashed_password:
+            return False
+        salt_hex, iterations_str, key_hex = hashed_password.split('$')
+        salt = bytes.fromhex(salt_hex)
+        iterations = int(iterations_str)
+        
+        test_key = hashlib.pbkdf2_hmac('sha256', plain_password.encode('utf-8'), salt, iterations)
+        return hmac.compare_digest(test_key.hex(), key_hex)
+    except Exception:
+        return False
+

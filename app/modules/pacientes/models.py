@@ -21,6 +21,7 @@ class Paciente(Base):
     fecha_actualizacion = Column(DateTime, server_default=func.now(), onupdate=func.now())
     mfa_code = Column(String(6), nullable=True)
     mfa_code_expires_at = Column(DateTime, nullable=True)
+    password_hash = Column(String(255), nullable=True)
 
     historiales_clinicos = relationship("HistorialClinico", back_populates="paciente")
     recetas = relationship("Receta", back_populates="paciente")
