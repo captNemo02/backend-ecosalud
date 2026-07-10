@@ -16,18 +16,6 @@ router = APIRouter(
 
 # --- Autenticación ---
 
-def mask_email(email: str) -> str:
-    try:
-        parts = email.split('@')
-        if len(parts) != 2:
-            return email
-        name, domain = parts
-        if len(name) <= 2:
-            return f"{name[0]}*@{domain}"
-        return f"{name[0]}{'*' * (len(name) - 2)}{name[-1]}@{domain}"
-    except Exception:
-        return email
-
 @router.post("/paciente/login", response_model=schemas.LoginResponse)
 def login_paciente(login_data: schemas.PacienteLogin, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """
@@ -64,7 +52,7 @@ def login_paciente(login_data: schemas.PacienteLogin, background_tasks: Backgrou
     return {
         "mfa_required": True,
         "mfa_token": mfa_token,
-        "email_masked": mask_email(paciente.email)
+        "email": paciente.email
     }
 
 @router.post("/paciente/verify-mfa", response_model=schemas.TokenResponse)
@@ -160,7 +148,7 @@ def reenviar_mfa(resend_data: schemas.MFAResendRequest, background_tasks: Backgr
     return {
         "mfa_required": True,
         "mfa_token": new_mfa_token,
-        "email_masked": mask_email(paciente.email)
+        "email": paciente.email
     }
 
 @router.post("/paciente/refresh")
